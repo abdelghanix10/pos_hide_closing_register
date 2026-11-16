@@ -1,64 +1,91 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <templates id="template" xml:space="preserve">
     <t t-name="pos_hide_closing_register.InventoryAdjustmentPopup">
-        <Dialog title="props.title || 'Inventory Adjustment'">
+        <Dialog title="this.props.title || 'Inventory Adjustment'">
             <div class="popup-content">
                 <div class="inventory-lines" style="max-height: 200px; overflow-y: auto; margin-bottom: 10px;">
-                    <t t-foreach="state.lines" t-as="line" t-key="line.id">
-                        <div class="inventory-line" style="display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #eee;">
-                            <span t-esc="line.product_name" style="flex: 2;"/>
-                            <span t-esc="line.quantity" style="flex: 1; text-align: right;"/>
-                            <i class="fa fa-trash" style="cursor: pointer; color: red; margin-left: 10px;" t-on-click="() => this.removeLine(line.id)"/>
+                    <t t-foreach="this.state.lines" t-as="line" t-key="line.id">
+                        <div class="inventory-line d-flex justify-content-between align-items-center p-2 border-bottom">
+                            <span t-out="line.product_name" style="flex: 2;"/>
+                            <span class="fw-bold" t-out="line.quantity" style="flex: 1; text-align: right;"/>
+                            <button class="btn btn-sm btn-link text-danger ms-2 p-0" t-on-click="() => this.removeLine(line.id)">
+                                <i class="oi" data-icon="delete"/>
+                            </button>
                         </div>
                     </t>
                 </div>
+
                 <div class="add-line-form" style="display: flex; flex-direction: column; gap: 10px;">
                     <div style="display: flex; gap: 5px;">
                         <div class="custom-select" style="flex: 2; position: relative;">
-                            <div class="selected-option" t-on-click="() => this.toggleDropdown()" style="border: 1px solid #ccc; padding: 5px; display: flex; align-items: center; cursor: pointer; background: white; min-height: 38px; border-radius: 4px;">
+                            <div class="selected-option"
+                                 t-on-click="() => this.toggleDropdown()"
+                                 style="border: 1px solid #ccc; padding: 5px 8px; display: flex; align-items: center; cursor: pointer; background: white; min-height: 40px; border-radius: 4px;">
                                 <t t-if="this.selectedProduct">
-                                     <img t-att-src="this.getImageUrl(this.selectedProduct.id)" style="width: 30px; height: 30px; margin-right: 10px; object-fit: cover;"/>
-                                     <span t-esc="this.selectedProduct.display_name"/>
+                                    <img t-att-src="this.getImageUrl(this.selectedProduct.id)"
+                                         style="width: 30px; height: 30px; margin-right: 10px; object-fit: cover;"/>
+                                    <span t-out="this.selectedProduct.display_name"/>
                                 </t>
                                 <t t-else="">
-                                     <span style="color: #888;">Select Product</span>
+                                    <span style="color: #888;">Select Product</span>
                                 </t>
-                                <i class="fa fa-caret-down" style="margin-left: auto;"/>
+                                <i class="oi ms-auto" data-icon="arrow_drop_down"/>
                             </div>
-                            <div class="options" t-if="state.dropdownOpen" style="position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                                <t t-foreach="availableProducts" t-as="product" t-key="product.id">
-                                    <div class="option" t-on-click="() => this.selectProduct(product.id)" style="padding: 5px; display: flex; align-items: center; cursor: pointer; border-bottom: 1px solid #eee;">
-                                        <img t-att-src="this.getImageUrl(product.id)" style="width: 30px; height: 30px; margin-right: 10px; object-fit: cover;"/>
-                                        <span t-esc="product.display_name"/>
+
+                            <div class="options"
+                                 t-if="this.state.dropdownOpen"
+                                 style="position: absolute; top: 100%; left: 0; right: 0; max-height: 240px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                <div class="p-1 border-bottom bg-light sticky-top">
+                                    <input type="text"
+                                           class="form-control form-control-sm"
+                                           placeholder="Filter products..."
+                                           t-model="this.state.searchQuery"/>
+                                </div>
+                                <t t-foreach="this.availableProducts" t-as="product" t-key="product.id">
+                                    <div class="option"
+                                         t-on-click="() => this.selectProduct(product.id)"
+                                         style="padding: 6px 8px; display: flex; align-items: center; cursor: pointer; border-bottom: 1px solid #eee;">
+                                        <img t-att-src="this.getImageUrl(product.id)"
+                                             style="width: 30px; height: 30px; margin-right: 10px; object-fit: cover;"/>
+                                        <span t-out="product.display_name"/>
                                     </div>
                                 </t>
                             </div>
                         </div>
-                        <input type="text" class="detail" t-model="state.inputQty" placeholder="Qty" style="flex: 1; padding: 5px; text-align: right;"/>
-                        <div class="button" t-on-click="addLine" style="padding: 5px 15px; background: #eee; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
-                            <i class="fa fa-plus"/>
-                        </div>
+
+                        <input type="text"
+                               class="detail form-control"
+                               t-model="this.state.inputQty"
+                               placeholder="Qty"
+                               style="flex: 1; padding: 5px; text-align: right; font-weight: bold;"/>
+
+                        <button type="button"
+                                class="btn btn-primary d-flex align-items-center justify-content-center"
+                                t-on-click="() => this.addLine()"
+                                style="padding: 5px 15px;">
+                            <i class="oi" data-icon="add"/>
+                        </button>
                     </div>
-                    
+
                     <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;">
-                        <button class="button" t-on-click="() => this.onKeypadClick('1')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">1</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('2')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">2</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('3')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">3</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('4')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">4</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('5')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">5</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('6')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">6</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('7')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">7</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('8')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">8</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('9')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">9</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('C')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #ffdddd; border: 1px solid #ccc; border-radius: 4px;">C</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('0')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">0</button>
-                        <button class="button" t-on-click="() => this.onKeypadClick('.')" style="padding: 15px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">.</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('1')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">1</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('2')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">2</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('3')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">3</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('4')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">4</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('5')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">5</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('6')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">6</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('7')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">7</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('8')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">8</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('9')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">9</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('C')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #ffdddd; border: 1px solid #ccc; border-radius: 4px;">C</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('0')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">0</button>
+                        <button class="button" t-on-click="() => this.onKeypadClick('.')" style="padding: 14px; font-size: 1.2em; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px;">.</button>
                     </div>
                 </div>
             </div>
             <t t-set-slot="footer">
-                <button class="button cancel btn btn-secondary" t-on-click="cancel">Cancel</button>
-                <button class="button confirm btn btn-primary" t-on-click="confirm">Valid</button>
+                <button class="button cancel btn btn-secondary" t-on-click="() => this.cancel()">Cancel</button>
+                <button class="button confirm btn btn-primary" t-on-click="() => this.confirm()">Validate &amp; Close</button>
             </t>
         </Dialog>
     </t>

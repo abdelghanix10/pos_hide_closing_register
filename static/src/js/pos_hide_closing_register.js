@@ -8,12 +8,12 @@ import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 patch(PosStore.prototype, {
   async closeSession() {
     if (!this.config.hide_closing_register) {
-      return super.closeSession();
+      return super.closeSession(...arguments);
     }
 
     this.isCustomClosing = true;
 
-    // 0. Ask for Inventory Adjustment
+    // 0. Ask for Inventory Adjustment if enabled
     if (this.config.enable_inventory_adjustment) {
       let products = [];
       if (this.models && this.models["product.product"]) {
@@ -36,8 +36,8 @@ patch(PosStore.prototype, {
         this.env.services.dialog,
         InventoryAdjustmentPopup,
         {
-          title: "Inventory Check",
-          products: products,
+          title: "Closing Inventory Check",
+          products,
         },
       );
 
@@ -46,15 +46,13 @@ patch(PosStore.prototype, {
         return;
       }
 
-      if (payload && payload.length > 0) {
+      if (payload.length > 0) {
         await this.data.call("pos.session", "apply_inventory_adjustments", [
           this.session.id,
           payload,
         ]);
       }
     }
-
-    // Custom logic for closing register without popup
 
     // 1. Get expected cash from server
     const info = await this.getClosePosInfo();
@@ -63,15 +61,13 @@ patch(PosStore.prototype, {
       expectedCash = info.default_cash_details.amount;
     }
 
-    // 2. Close register
+    // 2. Post closing cash details and close session
     if (this.config.cash_control) {
       await this.data.call(
         "pos.session",
         "post_closing_cash_details",
         [this.session.id],
-        {
-          counted_cash: expectedCash,
-        },
+        { counted_cash: expectedCash },
       );
     }
     await this.data.call(
@@ -90,35 +86,29 @@ patch(PosStore.prototype, {
       },
     );
 
-    // 3. Print "Daily Sale" (Sale Details Report)
-    try {
-      const reportHtml = await this.data.call(
-        "pos.session",
-        "get_daily_sale_report_html",
-        [this.session.id],
-      );
+    // 3. Auto-Print Custom Sales Details Report if enabled
+    if (this.config.enable_auto_print_sale_details !== false) {
+      try {
+        const reportHtml = await this.data.call(
+          "pos.session",
+          "get_daily_sale_report_html",
+          [this.session.id],
+        );
 
-      // Create a temporary element to hold the report HTML
-      const reportElement = document.createElement("div");
-      reportElement.classList.add("pos-daily-sale-report");
-      reportElement.innerHTML = reportHtml;
-
-      // Check print method from config
-      const printMethod = this.config.print_method || "chrome_preview";
-
-      if (printMethod === "qz_tray") {
-        // Print using QZ Tray
-        await this._printWithQzTray(reportHtml);
-      } else {
-        // Print using Chrome Print Preview (browser dialog)
-        await this._printWithChromePreview(reportHtml);
+        const printMethod = this.config.print_method || "chrome_preview";
+        if (printMethod === "qz_tray") {
+          await this._printWithQzTray(reportHtml);
+        } else {
+          await this._printWithChromePreview(reportHtml);
+        }
+      } catch (error) {
+        console.error("Error printing Custom Sales Details:", error);
       }
-    } catch (error) {}
+    }
 
     this.isCustomClosing = false;
 
     if (response.successful) {
-      // Delay the redirect to allow print to complete
       setTimeout(() => {
         localStorage.removeItem(`pos.session.${odoo.pos_config_id}`);
         sessionStorage.removeItem(`connected_cashier_${odoo.pos_config_id}`);
@@ -128,54 +118,36 @@ patch(PosStore.prototype, {
   },
 
   async _printWithChromePreview(htmlContent) {
-    // Open a new window for Chrome print preview
     const printWindow = window.open("", "_blank", "width=800,height=600");
     if (printWindow) {
       printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Daily Sale Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            @media print {
-              body { margin: 0; }
-            }
-          </style>
-        </head>
-        <body>
-          ${htmlContent}
-          <script>
-            window.onload = function() {
-              window.print();
-              window.onafterprint = function() { window.close(); };
-            };
-          </script>
-        </body>
-        </html>
-      `);
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Custom Sales Details Report</title>
+                    <style>
+                        body { font-family: "Courier New", Courier, monospace; margin: 20px; }
+                        @media print { body { margin: 0; } }
+                    </style>
+                </head>
+                <body>
+                    ${htmlContent}
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            window.onafterprint = function() { window.close(); };
+                        };
+                    </script>
+                </body>
+                </html>
+            `);
       printWindow.document.close();
-    } else {
     }
   },
 
   async _printWithQzTray(htmlContent) {
-    // Try to use the centralized QZ service first
     const qzService = this.env.services.qz_tray;
-
-    // Wrap content with requested styles
-    const wrappedHtml = `
-      <html>
-        <head>
-          <style>
-            /* Styles handled by report template */
-          </style>
-        </head>
-        <body>
-          ${htmlContent}
-        </body>
-      </html>
-    `;
+    const wrappedHtml = `<html><head></head><body>${htmlContent}</body></html>`;
 
     if (qzService) {
       try {
@@ -187,56 +159,34 @@ patch(PosStore.prototype, {
         });
         return;
       } catch (e) {
-        console.error(
-          "QZ Service print failed, falling back to local logic or chrome preview",
-          e,
-        );
+        console.error("QZ Service print failed, falling back:", e);
       }
     }
 
-    // Check if QZ Tray is available globally (fallback)
     if (typeof qz === "undefined") {
       await this._printWithChromePreview(htmlContent);
       return;
     }
 
     try {
-      // Connect to QZ Tray if not connected
       if (!qz.websocket.isActive()) {
         await qz.websocket.connect({
           host: "localhost",
-          port: {
-            secure: [8181], // QZ Tray WSS port (confirmed active)
-            insecure: [],   // Leave empty to block ws://
-          },
-          usingSecure: true, // Force wss://
+          port: { secure: [8181], insecure: [] },
+          usingSecure: true,
           keepAlive: 60,
         });
       }
-
-      // Find the default printer
       const printer = await qz.printers.getDefault();
       if (!printer) {
         await this._printWithChromePreview(htmlContent);
         return;
       }
-
-      // Configure print job
       const config = qz.configs.create(printer, { scaleContent: false });
-
-      // Create print data (HTML format)
-      const data = [
-        {
-          type: "html",
-          format: "plain",
-          data: wrappedHtml,
-        },
-      ];
-
-      // Send to printer
-      await qz.print(config, data);
-    } catch (error) {
-      // Fallback to Chrome print preview
+      await qz.print(config, [
+        { type: "html", format: "plain", data: wrappedHtml },
+      ]);
+    } catch {
       await this._printWithChromePreview(htmlContent);
     }
   },

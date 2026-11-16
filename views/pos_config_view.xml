@@ -6,13 +6,36 @@
         <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="inside">
-                <group string="Closing &amp; Inventory" name="closing_inventory_section">
-                    <field name="hide_closing_register"/>
-                    <field name="enable_inventory_adjustment" invisible="not hide_closing_register"/>
-                    <field name="inventory_adjustment_product_ids" widget="many2many_tags" invisible="not enable_inventory_adjustment"/>
+                <group string="Closing &amp; Inventory Check" name="closing_inventory_section">
+                    <group>
+                        <field name="hide_closing_register"/>
+                        <field name="enable_inventory_adjustment" invisible="not hide_closing_register"/>
+                        <field name="inventory_adjustment_product_ids"
+                               widget="many2many_tags"
+                               invisible="not enable_inventory_adjustment or not hide_closing_register"/>
+                    </group>
+                    <group>
+                        <field name="enable_auto_print_sale_details"/>
+                        <field name="print_method" widget="radio" invisible="not enable_auto_print_sale_details"/>
+                    </group>
                 </group>
-                <group string="Printing" name="printing_section">
-                    <field name="print_method" widget="radio"/>
+
+                <group string="Custom Sales Details Report" name="custom_sales_details_section">
+                    <group string="Report Branding &amp; Text">
+                        <field name="sale_details_custom_title"/>
+                        <field name="sale_details_custom_header"/>
+                        <field name="sale_details_custom_footer"/>
+                        <field name="sale_details_currency_symbol"/>
+                    </group>
+                    <group string="Visible Report Sections">
+                        <field name="sd_show_company_info"/>
+                        <field name="sd_show_session_summary"/>
+                        <field name="sd_show_cash_control"/>
+                        <field name="sd_show_sales_by_category"/>
+                        <field name="sd_show_discounts_and_refunds"/>
+                        <field name="sd_show_payment_methods"/>
+                        <field name="sd_show_inventory_adjustments"/>
+                    </group>
                 </group>
             </xpath>
         </field>

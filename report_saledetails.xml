@@ -5,126 +5,226 @@
             <style>
                 body {
                     font-weight: bold;
-                }
-                @media print {
-                    body {
-                        font-size: 14px;
-                    }
-                }
-                @media screen {
-                    body {
-                        font-size: 14px;
-                    }
+                    font-family: "Courier New", Courier, monospace;
+                    font-size: 13px;
+                    margin: 0;
+                    padding: 0;
                 }
                 table {
                     table-layout: fixed;
                     width: 100%;
+                    border-collapse: collapse;
                 }
                 td, th {
                     word-wrap: break-word;
                     overflow-wrap: break-word;
                     white-space: normal;
+                    padding: 2px 0;
                 }
-                th:first-child, td:first-child {
-                    width: 50%;
+                .line-sep {
+                    border: none;
+                    border-top: 1px dashed #000;
+                    margin: 6px 0;
                 }
-                th:nth-child(2), td:nth-child(2) {
-                    width: 15%;
-                    text-align: right;
-                }
-                th:nth-child(3), td:nth-child(3) {
-                    width: 35%;
-                    text-align: center;
+                .double-sep {
+                    border: none;
+                    border-top: 2px solid #000;
+                    margin: 6px 0;
                 }
             </style>
             <main>
                 <t t-foreach="docs" t-as="o">
-                    <div class="page" style="font-size: 14px; font-family: monospace; padding: 5px; font-weight: bold;">
-                        <div style="text-align: center; margin-bottom: 5px;">
-                            <strong><t t-esc="o.company_id.name"/></strong><br/>
-                            <small><t t-esc="o.company_id.street or ''"/>, <t t-esc="o.company_id.city or ''"/>, <t t-esc="o.company_id.country_id.name if o.company_id.country_id else ''"/></small><br/>
-                            <small>Phone: <t t-esc="o.company_id.phone or ''"/></small><br/>
-                        </div>
-                        <div style="text-align: center; margin-bottom: 5px; border-bottom: 1px solid #000;">
-                            <strong>SESSION REPORT</strong>
-                        </div>
-                        <div style="margin-bottom: 5px;">
-                            <strong>Session ID:</strong> <t t-esc="o.name"/><br/>
-                            <strong>Opened:</strong> <t t-esc="o.start_at"/><br/>
-                            <strong>Closed:</strong> <t t-esc="o.stop_at"/><br/>
-                            <strong>Status:</strong> <t t-esc="o.state"/><br/>
-                        </div>
-                        <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;"/>
-                        <div style="text-align: center; margin-bottom: 5px;">
-                            <strong>TOTAL SALES: <t t-esc="'{:.2f}'.format(sum(o.order_ids.mapped('amount_total')))"/> DH</strong>
-                        </div>
-                        
-                        <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;"/>
-                        <div style="margin-bottom: 5px;">
-                            <strong>SALES BREAKDOWN</strong><br/>
-                            <table style="font-size: 14px; border-collapse: collapse; font-weight: bold;">
-                                <thead>
-                                    <tr style="border-bottom: 1px solid #000;">
-                                        <th style="text-align: left;">Item</th>
-                                        <th style="text-align: right; padding-right: 10px;">Qty</th>
-                                        <th style="text-align: center;">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <t t-set="order_lines" t-value="o.order_ids.mapped('lines').filtered(lambda l: l.product_id and l.product_id.product_tmpl_id.pos_categ_ids)"/>
-                                    <t t-set="categories" t-value="order_lines.mapped(lambda l: l.product_id.product_tmpl_id.pos_categ_ids).sorted(key=lambda c: c.name)"/>
-                                    <t t-foreach="categories" t-as="category">
-                                        <t t-set="cat_lines" t-value="order_lines.filtered(lambda l: category in l.product_id.product_tmpl_id.pos_categ_ids)"/>
-                                        <t t-set="cat_qty" t-value="sum(cat_lines.mapped('qty'))"/>
-                                        <t t-set="cat_amount" t-value="sum(cat_lines.mapped('price_subtotal_incl'))"/>
-                                        <tr>
-                                            <td colspan="3" style="height: 5px;"></td>
-                                        </tr>
-                                        <tr style="border-top: 1px solid #000; font-size: 14px;">
-                                            <td style="padding-top: 5px;"><strong><t t-esc="category.name"/></strong></td>
-                                            <td style="text-align: right; padding-right: 10px; padding-top: 5px;"><strong><t t-esc="'{:.0f}'.format(cat_qty)"/></strong></td>
-                                            <td style="text-align: center; padding-top: 5px;"><strong><t t-esc="'{:.2f}'.format(cat_amount)"/> DH</strong></td>
-                                        </tr>
-                                        <t t-set="products" t-value="cat_lines.mapped('product_id').sorted(key=lambda p: p.name)"/>
-                                        <t t-foreach="products" t-as="product">
-                                            <t t-set="prod_lines" t-value="cat_lines.filtered(lambda l: l.product_id == product)"/>
-                                            <t t-set="prod_qty" t-value="sum(prod_lines.mapped('qty'))"/>
-                                            <t t-set="prod_amount" t-value="sum(prod_lines.mapped('price_subtotal_incl'))"/>
-                                            <tr>
-                                                <td colspan="3"><hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;"/></td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding-left: 10px;"><t t-esc="product.name"/></td>
-                                                <td style="text-align: right; padding-right: 10px;"><t t-esc="'{:.0f}'.format(prod_qty)"/></td>
-                                                <td style="text-align: center;"><t t-esc="'{:.2f}'.format(prod_amount)"/> DH</td>
-                                            </tr>
-                                        </t>
-                                    </t>
-                                    <tr>
-                                        <td colspan="3" style="height: 5px;"></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;"/>
-                        <div style="margin-bottom: 5px;">
-                            <strong>PAYMENTS</strong><br/>
-                            <t t-set="payments" t-value="o.order_ids.mapped('payment_ids')"/>
-                            <t t-set="payment_methods" t-value="payments.mapped('payment_method_id').sorted(key=lambda m: m.name)"/>
-                            <t t-foreach="payment_methods" t-as="method">
-                                <t t-set="method_payments" t-value="payments.filtered(lambda p: p.payment_method_id == method)"/>
-                                <t t-esc="method.name"/>: <t t-esc="'{:.2f}'.format(sum(method_payments.mapped('amount')))"/> DH<br/>
+                    <t t-set="cfg" t-value="o.config_id"/>
+                    <t t-set="sd" t-value="o._get_custom_sale_details_data()"/>
+                    <t t-set="curr" t-value="sd['currency']"/>
+
+                    <div class="page" style="padding: 5px;">
+                        <!-- 1. Company Info -->
+                        <div t-if="cfg.sd_show_company_info" style="text-align: center; margin-bottom: 6px;">
+                            <div style="font-size: 15px; font-weight: bold;">
+                                <t t-out="o.company_id.name"/>
+                            </div>
+                            <t t-if="o.company_id.street or o.company_id.city">
+                                <small>
+                                    <t t-out="o.company_id.street or ''"/>
+                                    <t t-if="o.company_id.city">, <t t-out="o.company_id.city"/></t>
+                                </small><br/>
+                            </t>
+                            <t t-if="o.company_id.phone">
+                                <small>Tel: <t t-out="o.company_id.phone"/></small><br/>
                             </t>
                         </div>
-                        <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;"/>
-                        <div style="text-align: center; margin-bottom: 5px;">
-                            <strong>TOTAL SALES: <t t-esc="'{:.2f}'.format(sum(o.order_ids.mapped('amount_total')))"/> DH</strong>
+
+                        <!-- Report Title & Optional Custom Header -->
+                        <div style="text-align: center; margin-bottom: 6px; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px 0;">
+                            <strong style="font-size: 15px;">
+                                <t t-out="cfg.sale_details_custom_title or 'SESSION REPORT'"/>
+                            </strong>
+                            <t t-if="cfg.sale_details_custom_header">
+                                <br/><small><t t-out="cfg.sale_details_custom_header"/></small>
+                            </t>
                         </div>
-                        <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;"/>
-                        <div style="text-align: center; margin-top: 5px;">
-                            <strong>Thank you for using Odoo POS</strong><br/>
-                            <small>Generated on <t t-esc="datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')"/></small>
+
+                        <!-- 2. Session Summary -->
+                        <div t-if="cfg.sd_show_session_summary" style="margin-bottom: 6px;">
+                            <div>POS: <t t-out="cfg.name"/></div>
+                            <div>Session: <t t-out="o.name"/></div>
+                            <div>Cashier: <t t-out="sd['cashier']"/></div>
+                            <div>Opened: <t t-out="sd['opened_at']"/></div>
+                            <div>Closed: <t t-out="sd['closed_at']"/></div>
+                            <div>Status: <t t-out="o.state"/></div>
+                            <div>Orders: <t t-out="sd['order_count']"/> (Items: <t t-out="'{:.0f}'.format(sd['total_items_qty'])"/>)</div>
+                        </div>
+
+                        <hr class="line-sep"/>
+                        <div style="text-align: center; font-size: 15px; margin: 4px 0;">
+                            <strong>TOTAL SALES: <t t-out="'{:.2f}'.format(sd['total_sales'])"/> <t t-out="curr"/></strong>
+                        </div>
+                        <hr class="line-sep"/>
+
+                        <!-- 3. Cash Control Summary -->
+                        <t t-if="cfg.sd_show_cash_control">
+                            <div style="margin-bottom: 6px;">
+                                <strong>CASH REGISTER SUMMARY</strong>
+                                <table>
+                                    <tr>
+                                        <td style="width: 60%;">Opening Cash:</td>
+                                        <td style="width: 40%; text-align: right;"><t t-out="'{:.2f}'.format(sd['opening_cash'])"/> <t t-out="curr"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Expected Cash:</td>
+                                        <td style="text-align: right;"><t t-out="'{:.2f}'.format(sd['expected_cash'])"/> <t t-out="curr"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Counted Cash:</td>
+                                        <td style="text-align: right;"><t t-out="'{:.2f}'.format(sd['counted_cash'])"/> <t t-out="curr"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Difference:</td>
+                                        <td style="text-align: right;"><t t-out="'{:.2f}'.format(sd['cash_diff'])"/> <t t-out="curr"/></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <hr class="line-sep"/>
+                        </t>
+
+                        <!-- 4. Sales Breakdown by Category & Product -->
+                        <t t-if="cfg.sd_show_sales_by_category">
+                            <div style="margin-bottom: 6px;">
+                                <strong>SALES BREAKDOWN</strong>
+                                <table>
+                                    <thead>
+                                        <tr style="border-bottom: 1px solid #000;">
+                                            <th style="width: 50%; text-align: left;">Item</th>
+                                            <th style="width: 15%; text-align: right; padding-right: 6px;">Qty</th>
+                                            <th style="width: 35%; text-align: right;">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="sd['categories']" t-as="cat">
+                                            <tr style="border-top: 1px solid #000;">
+                                                <td style="padding-top: 4px;"><strong>[<t t-out="cat['name']"/>]</strong></td>
+                                                <td style="text-align: right; padding-right: 6px; padding-top: 4px;">
+                                                    <strong><t t-out="'{:.0f}'.format(cat['qty'])"/></strong>
+                                                </td>
+                                                <td style="text-align: right; padding-top: 4px;">
+                                                    <strong><t t-out="'{:.2f}'.format(cat['amount'])"/> <t t-out="curr"/></strong>
+                                                </td>
+                                            </tr>
+                                            <t t-foreach="cat['products']" t-as="prod">
+                                                <tr>
+                                                    <td style="padding-left: 8px;"><t t-out="prod['name']"/></td>
+                                                    <td style="text-align: right; padding-right: 6px;"><t t-out="'{:.0f}'.format(prod['qty'])"/></td>
+                                                    <td style="text-align: right;"><t t-out="'{:.2f}'.format(prod['amount'])"/> <t t-out="curr"/></td>
+                                                </tr>
+                                            </t>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <hr class="line-sep"/>
+                        </t>
+
+                        <!-- 5. Discounts, Taxes & Refunds -->
+                        <t t-if="cfg.sd_show_discounts_and_refunds">
+                            <div style="margin-bottom: 6px;">
+                                <strong>TAXES, DISCOUNTS &amp; REFUNDS</strong>
+                                <table>
+                                    <tr>
+                                        <td style="width: 60%;">Net Sales (Excl. Tax):</td>
+                                        <td style="width: 40%; text-align: right;"><t t-out="'{:.2f}'.format(sd['net_sales'])"/> <t t-out="curr"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Total Taxes:</td>
+                                        <td style="text-align: right;"><t t-out="'{:.2f}'.format(sd['total_tax'])"/> <t t-out="curr"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Total Discounts:</td>
+                                        <td style="text-align: right;"><t t-out="'{:.2f}'.format(sd['total_discount'])"/> <t t-out="curr"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Refunds (<t t-out="sd['refund_count']"/>):</td>
+                                        <td style="text-align: right;"><t t-out="'{:.2f}'.format(sd['total_refunds'])"/> <t t-out="curr"/></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <hr class="line-sep"/>
+                        </t>
+
+                        <!-- 6. Payment Methods -->
+                        <t t-if="cfg.sd_show_payment_methods">
+                            <div style="margin-bottom: 6px;">
+                                <strong>PAYMENTS</strong>
+                                <table>
+                                    <t t-foreach="sd['payments']" t-as="pm">
+                                        <tr>
+                                            <td style="width: 60%;"><t t-out="pm['name']"/>:</td>
+                                            <td style="width: 40%; text-align: right;"><t t-out="'{:.2f}'.format(pm['amount'])"/> <t t-out="curr"/></td>
+                                        </tr>
+                                    </t>
+                                </table>
+                            </div>
+                            <hr class="line-sep"/>
+                        </t>
+
+                        <!-- 7. Closing Inventory Adjustments -->
+                        <t t-if="cfg.sd_show_inventory_adjustments and sd['inventory_log']">
+                            <div style="margin-bottom: 6px;">
+                                <strong>CLOSING INVENTORY CHECK</strong>
+                                <table>
+                                    <thead>
+                                        <tr style="border-bottom: 1px solid #000;">
+                                            <th style="width: 50%; text-align: left;">Product</th>
+                                            <th style="width: 25%; text-align: right;">Counted</th>
+                                            <th style="width: 25%; text-align: right;">Diff</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="sd['inventory_log']" t-as="inv">
+                                            <tr>
+                                                <td><t t-out="inv['product_name']"/></td>
+                                                <td style="text-align: right;"><t t-out="'{:.2f}'.format(inv['counted_qty'])"/></td>
+                                                <td style="text-align: right;">
+                                                    <t t-out="('{:+.2f}' if inv['difference'] != 0 else '{:.2f}').format(inv['difference'])"/>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <hr class="line-sep"/>
+                        </t>
+
+                        <!-- Final Total & Footer -->
+                        <div style="text-align: center; font-size: 15px; margin: 6px 0;">
+                            <strong>TOTAL SALES: <t t-out="'{:.2f}'.format(sd['total_sales'])"/> <t t-out="curr"/></strong>
+                        </div>
+                        <hr class="double-sep"/>
+                        <div style="text-align: center; margin-top: 6px;">
+                            <t t-if="cfg.sale_details_custom_footer">
+                                <strong><t t-out="cfg.sale_details_custom_footer"/></strong><br/>
+                            </t>
+                            <small>Generated on <t t-out="sd['generated_at']"/></small>
                         </div>
                     </div>
                 </t>
@@ -132,7 +232,7 @@
         </template>
 
         <record id="sale_details_report" model="ir.actions.report">
-            <field name="name">Sales Details</field>
+            <field name="name">Custom Sales Details</field>
             <field name="model">pos.session</field>
             <field name="report_type">qweb-html</field>
             <field name="report_name">pos_hide_closing_register.report_saledetails</field>
