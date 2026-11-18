@@ -1,5 +1,6 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import inspect
 import json
 import traceback
 
@@ -13,6 +14,83 @@ class PosSession(models.Model):
         string="Closing Inventory Log (JSON)",
         help="Stores the inventory adjustments recorded when closing this session.",
     )
+
+    def _get_session_cash_balances(self):
+        """Retrieve cash balances with support for Odoo 20 and older fields."""
+        self.ensure_one()
+        opening_cash = 0.0
+        expected_cash = 0.0
+        counted_cash = 0.0
+        cash_diff = 0.0
+
+        if 'cash_register_balance_start' in self._fields:
+            opening_cash = self.cash_register_balance_start or 0.0
+            expected_cash = getattr(self, 'cash_register_balance_end', 0.0) or 0.0
+            counted_cash = getattr(self, 'cash_register_balance_end_real', 0.0) or expected_cash
+            cash_diff = getattr(self, 'cash_register_difference', 0.0) or (counted_cash - expected_cash)
+            return opening_cash, expected_cash, counted_cash, cash_diff
+
+        try:
+            control_data = self.get_closing_control_data()
+            if isinstance(control_data, dict):
+                cash_details = control_data.get('default_cash_details') or {}
+                opening_cash = float(cash_details.get('opening', 0.0) or 0.0)
+                expected_cash = float(cash_details.get('amount', 0.0) or 0.0)
+        except Exception:
+            pass
+
+        try:
+            statement = self.bank_statement_id
+            if statement:
+                if 'balance_end_real' in statement._fields:
+                    counted_cash = float(statement.balance_end_real or 0.0)
+                    cash_diff = counted_cash - expected_cash
+        except Exception:
+            pass
+
+        if counted_cash == 0.0:
+            counted_cash = expected_cash
+        if cash_diff == 0.0:
+            cash_diff = counted_cash - expected_cash
+
+        return opening_cash, expected_cash, counted_cash, cash_diff
+
+    @api.model
+    def auto_close_session_from_ui(self, session_id, counted_cash=0.0):
+        """
+        Closes a POS session in Odoo 20 without using removed fields/methods
+        (`post_closing_cash_details`, `cash_register_balance_end_real`).
+        """
+        session = self.sudo().browse(session_id)
+        if not session.exists():
+            return {'successful': False}
+
+        if session.state == 'closed':
+            return {'successful': True}
+
+        # 1. Update closing control state / notes if available
+        if hasattr(session, 'update_closing_control_state_session'):
+            session.update_closing_control_state_session("")
+
+        # 2. Build payment method counted amounts for Odoo 20
+        sig = inspect.signature(session.close_session_from_ui)
+        params = [p for p in sig.parameters.values() if p.name != 'self']
+        if not params:
+            return session.close_session_from_ui()
+
+        cash_pm = session.config_id._get_cash_payment_method()
+        payment_method_closing = {}
+        if cash_pm:
+            payment_method_closing[str(cash_pm.id)] = float(counted_cash or 0.0)
+
+        response = session.close_session_from_ui(payment_method_closing)
+        if isinstance(response, dict):
+            if response.get('status') is True:
+                return {'successful': True, 'status': True}
+            return {'successful': False, 'status': False, **response}
+        if response is True:
+            return {'successful': True, 'status': True}
+        return {'successful': False, 'status': False}
 
     @api.model
     def get_daily_sale_report_html(self, session_id):
@@ -159,11 +237,8 @@ class PosSession(models.Model):
             for name, amount in sorted(payments_map.items(), key=lambda x: x[0])
         ]
 
-        # Cash register balances
-        opening_cash = getattr(self, 'cash_register_balance_start', 0.0) or 0.0
-        expected_cash = getattr(self, 'cash_register_balance_end', 0.0) or 0.0
-        counted_cash = getattr(self, 'cash_register_balance_end_real', 0.0) or expected_cash
-        cash_diff = getattr(self, 'cash_register_difference', 0.0) or (counted_cash - expected_cash)
+        # Cash register balances (Odoo 20 compatible)
+        opening_cash, expected_cash, counted_cash, cash_diff = self._get_session_cash_balances()
 
         # Inventory adjustments log
         inventory_log = []

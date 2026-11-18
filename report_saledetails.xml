@@ -236,7 +236,6 @@
             <field name="model">pos.session</field>
             <field name="report_type">qweb-html</field>
             <field name="report_name">pos_hide_closing_register.report_saledetails</field>
-            <field name="report_file">pos_hide_closing_register.report_saledetails</field>
             <field name="print_report_name">'Sales Details - %s' % (object.name)</field>
             <field name="binding_model_id" ref="point_of_sale.model_pos_session"/>
             <field name="binding_type">report</field>

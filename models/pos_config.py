@@ -1,4 +1,4 @@
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class PosConfig(models.Model):
@@ -59,3 +59,17 @@ class PosConfig(models.Model):
     sd_show_discounts_and_refunds = fields.Boolean(string="Show Discounts, Taxes & Refunds", default=True)
     sd_show_payment_methods = fields.Boolean(string="Show Payment Methods Breakdown", default=True)
     sd_show_inventory_adjustments = fields.Boolean(string="Show Closing Inventory Counts", default=True)
+
+    @api.model
+    def _load_pos_data_read(self, records, config):
+        read_records = super()._load_pos_data_read(records, config)
+        for record, pos_config in zip(read_records, records):
+            record.update({
+                'hide_closing_register': pos_config.hide_closing_register,
+                'enable_inventory_adjustment': pos_config.enable_inventory_adjustment,
+                'inventory_adjustment_product_ids': pos_config.inventory_adjustment_product_ids.ids,
+                'print_method': pos_config.print_method,
+                'enable_auto_print_sale_details': pos_config.enable_auto_print_sale_details,
+                'sale_details_currency_symbol': pos_config.sale_details_currency_symbol,
+            })
+        return read_records

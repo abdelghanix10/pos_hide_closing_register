@@ -1,18 +1,21 @@
 /** @odoo-module */
-import { Component, proxy } from "@odoo/owl";
+import { Component, proxy, signal, useProps } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
 
 export class InventoryAdjustmentPopup extends Component {
   static template = "pos_hide_closing_register.InventoryAdjustmentPopup";
   static components = { Dialog };
 
+  props = useProps();
+
+  // OWL 3 t-model requires signal() primitives
+  searchQuery = signal("");
+  inputQty = signal("");
+
   setup() {
-    // OWL 3 in Odoo 20 uses proxy() instead of useState()
     this.state = proxy({
       lines: [],
       selectedProductId: "",
-      searchQuery: "",
-      inputQty: "",
       dropdownOpen: false,
     });
   }
@@ -26,7 +29,7 @@ export class InventoryAdjustmentPopup extends Component {
 
   get availableProducts() {
     const addedIds = this.state.lines.map((l) => l.product_id);
-    const query = (this.state.searchQuery || "").trim().toLowerCase();
+    const query = (this.searchQuery() || "").trim().toLowerCase();
     return (this.props.products || []).filter((p) => {
       if (addedIds.includes(p.id)) return false;
       if (!query) return true;
@@ -45,30 +48,31 @@ export class InventoryAdjustmentPopup extends Component {
   selectProduct(productId) {
     this.state.selectedProductId = productId;
     this.state.dropdownOpen = false;
-    this.state.searchQuery = "";
+    this.searchQuery.set("");
   }
 
   onKeypadClick(value) {
+    const current = this.inputQty() || "";
     if (value === "C") {
-      this.state.inputQty = "";
+      this.inputQty.set("");
     } else if (value === "BACK") {
-      this.state.inputQty = this.state.inputQty.slice(0, -1);
+      this.inputQty.set(current.slice(0, -1));
     } else if (value === ".") {
-      if (!this.state.inputQty.includes(".")) {
-        this.state.inputQty = (this.state.inputQty || "0") + ".";
+      if (!current.includes(".")) {
+        this.inputQty.set((current || "0") + ".");
       }
     } else {
-      if (this.state.inputQty === "0") {
-        this.state.inputQty = value;
+      if (current === "0") {
+        this.inputQty.set(value);
       } else {
-        this.state.inputQty += value;
+        this.inputQty.set(current + value);
       }
     }
   }
 
   addLine() {
     const productId = parseInt(this.state.selectedProductId, 10);
-    const qty = parseFloat(this.state.inputQty);
+    const qty = parseFloat(this.inputQty());
 
     if (!productId || isNaN(qty)) {
       return;
@@ -89,7 +93,7 @@ export class InventoryAdjustmentPopup extends Component {
     });
 
     this.state.selectedProductId = "";
-    this.state.inputQty = "";
+    this.inputQty.set("");
   }
 
   removeLine(id) {
@@ -98,7 +102,7 @@ export class InventoryAdjustmentPopup extends Component {
 
   confirm() {
     // If user selected a product and typed a quantity but forgot to press '+', add it automatically
-    if (this.state.selectedProductId && this.state.inputQty !== "") {
+    if (this.state.selectedProductId && this.inputQty() !== "") {
       this.addLine();
     }
     this.props.getPayload(this.state.lines);
